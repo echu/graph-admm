@@ -26,9 +26,8 @@ your code. The API requires that the solve() and objective() functions be
 passed in to the node structures.
 
 In our paper, device and nets have the same priority: they are just two ways
-of partitioning a set of terminals. Our implementation is slightly different:
-nets exist virtually (they exist on a device). A terminal has knowledge of
-which net it is a part of.
+of partitioning a set of terminals. Our implementation follows this structure.
+It is a red-black ordering of the problem.
 
 The current Makefile is hardcoded. I don't expect portability to be an issue, 
 since the code is essentially flat C. This will be the last thing we'll worry 
