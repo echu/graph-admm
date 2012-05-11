@@ -33,3 +33,10 @@ which net it is a part of.
 The current Makefile is hardcoded. I don't expect portability to be an issue, 
 since the code is essentially flat C. This will be the last thing we'll worry 
 about.
+
+You might want to consider using Neal's proximal library on kona.
+
+TODO
+====
+* Write some unit tests.
+* Make `connect` override-able or at least user-supplied.

@@ -7,130 +7,155 @@ static float beta = 0.1;
 static float load[] = { 1.1, 1.0, 0.9, 0.8, 1.2, 1.4, 1.5, 1.8, 1.9, 2.0 };
 
 
-// objectives
-float load_objective(struct gadmm_node *d)
+/* ------------------- *
+ * OBJECTIVE FUNCTIONS *
+ * ------------------- */
+ 
+// the objective on a load
+float load_objective(struct gadmm_vertex *d)
 {
   return 0.0;
 }
 
-float gen_objective(struct gadmm_node *d)
+// the objective for a generator
+float gen_objective(struct gadmm_vertex *d)
 {
   float obj = 0;
-  for(int i = 0; i < edge_length(d, 0); i++)
-  {
-    obj += alpha*get_p(d, 0, i)*get_p(d, 0, i) - beta*get_p(d, 0, i);
-  }
+  const struct gadmm_edge *e  = get_edge(d,0);
+  for(int i = 0; i < edge_length(e); i++)
+    obj += alpha*get_p(e, i)*get_p(e, i) - beta*get_p(e, i);
   return obj;
 }
 
-// solvers
-void load_solve(struct gadmm_node *s, const float rho)
+/* ---------------- *
+ * SOLVER FUNCTIONS *
+ * ---------------- *
+ * These currently use the simplified version of the MSG_PASS_DYN
+ * algorithm. If needed, they could be adjusted to use the more 
+ * generic ADMM algorithm. 
+ */
+
+// the solver for a load
+void load_solve(struct gadmm_vertex *s, const float rho)
 {
   for(int i = 0; i < num_edges(s); i++)
   {
-    for(int j = 0; j < edge_length(s,i); j++)
-      set_p(s, i, j, load[j]); // solve for this terminal
+    struct gadmm_edge *e  = get_mutable_edge(s,i);
+    for(int j = 0; j < edge_length(e); j++)
+      set_p(e, j, load[j]); // solve for this terminal
   }
 }
 
-void gen_solve(struct gadmm_node *s, const float rho)
+// the solver for a generator
+void gen_solve(struct gadmm_vertex *s, const float rho)
 {
   for(int i = 0; i < num_edges(s); i++)
   {
-    for(int j = 0; j < edge_length(s,i); j++) {
-      float v = get_p(s, i, j) - get_u(s, i, j);
+    struct gadmm_edge *e  = get_mutable_edge(s,i);
+    for(int j = 0; j < edge_length(e); j++) {
+      float v = get_p(e, j) - get_u(e, j);
       float tmp = (rho*v + beta)/(2*alpha + rho);
       tmp = (tmp >= 0) ? 0 : tmp;
       tmp = (tmp <= -3.0) ? -3.0 : tmp;
-      set_p(s, i, j, tmp);
+      set_p(e, j, tmp);
     }
   }
 }
 
-void line_solve(struct gadmm_node *s, const float rho)
+// the solver for a lossless line
+void line_solve(struct gadmm_vertex *s, const float rho)
 {
   float tmp[10];
   for(int i = 0; i < num_edges(s); i++) {
-    for(int j = 0; j < edge_length(s,i); j++) {
+    const struct gadmm_edge *e  = get_edge(s,i);
+    for(int j = 0; j < edge_length(e); j++) {
       if(i == 0) tmp[j] = 0;
-      tmp[j] += get_p(s, i, j) - get_u(s, i, j);
+      tmp[j] += get_p(e, j) - get_u(e, j);
     }
   }
+  
+  // send data back
   for(int i = 0; i < num_edges(s); i++) {
-    for(int j = 0; j < edge_length(s,i); j++) {
-      set_p(s, i, j, get_p(s, i, j) - get_u(s, i, j) - tmp[j]/num_edges(s));
+    struct gadmm_edge *e  = get_mutable_edge(s,i);
+    for(int j = 0; j < edge_length(e); j++) {
+      set_p(e, j, get_p(e, j) - get_u(e, j) - tmp[j]/num_edges(s));
     }
   }
 }
 
-// you should specify how the edges are connected
-void connect(struct gadmm_node *d1, const int e1, struct gadmm_node *d2, const int e2)
+// the solver for a bus
+void physics(struct gadmm_vertex *s, const float rho)
 {
-  add_neighbor(get_factor(d1, e1), get_edge(d2, e2));
-  add_neighbor(get_factor(d2, e2), get_edge(d1, e1));
+  float tmp[10];
+  for(int i = 0; i < num_edges(s); i++) {
+    const struct gadmm_edge *e  = get_edge(s,i);
+    for(int j = 0; j < edge_length(e); j++) {
+      if(i == 0) tmp[j] = 0;
+      tmp[j] += get_p(e, j);
+    }
+  }
+  
+  // send the data back
+  for(int i = 0; i < num_edges(s); i++) {
+    struct gadmm_edge *e  = get_mutable_edge(s,i);
+    for(int j = 0; j < edge_length(e); j++) {
+      set_p(e, j, get_p(e,j) - tmp[j]/num_edges(s));
+      set_u(e, j, get_u(e,j) + tmp[j]/num_edges(s));
+    }
+  }
 }
 
-
+/* ------------- *
+ * MAIN FUNCTION *
+ * ------------- */
 int main(int argc, char **argv)
 {
-  struct gadmm_node *l = create_node(10, 1, &load_objective, &load_solve);
-  struct gadmm_node *g = create_node(10, 1, &gen_objective, &gen_solve);
-  struct gadmm_node *line = create_node(10, 2, &load_objective, &line_solve);
+  // red vertices
+  struct gadmm_vertex *l = create_vertex(10, 1, &load_objective, &load_solve);
+  struct gadmm_vertex *g = create_vertex(10, 1, &gen_objective, &gen_solve);
+  struct gadmm_vertex *line = create_vertex(10, 2, &load_objective, &line_solve);
   
-  // problems can happen here if you subscribe using an *incompatible* proj_func
-  //    you might crash if published message is unexpected
-  //    error-checking can be done in proj_func
-  //    error-handling can also be done in proj_func
-  //
-  // we leave it completely up to the user to ensure that compatible proj_funcs
-  // are being used when subscribing
-  //
-  //subscribe(l,'abc', proj_func);
-  //subscribe(g,'abc', proj_func);
-  //subscribe(l,'abc', proj_func);  // do nothing?
+  // black vertices
+  struct gadmm_vertex *bus1 = create_vertex(0,2, &load_objective, &physics);
+  struct gadmm_vertex *bus2 = create_vertex(0,2, &load_objective, &physics);
   
-  connect(l,0, line,0);
-  connect(g,0, line,1);
+
+  // connect the load and the line to a bus
+  connect(l,0, bus1,0);
+  connect(line,0, bus1,1);
   
+  // connect the generator and the other end of the line to a bus
+  connect(g,0, bus2,0);
+  connect(line,1, bus2,1);
   
-  // XXX: make the following a finite state machine?
-  // XXX: need some sort of asynchronous receive
+  // XXX: need some sort of asynchronous mechanism
   for(int iter = 0; iter < 1000; iter++) {
+    // SOLVE red
+    solve_vertex(l, 1.0);
+    solve_vertex(g, 1.0);
+    solve_vertex(line, 1.0);
     
-    // SOLVE state
-    solve_node(l, 1.0);
-    solve_node(g, 1.0);
-    solve_node(line, 1.0);
-    
-    // BROADCAST immediately after
-    
-    // WAIT / RECEIVE state
-    
-    // each node enters wait state
-    // 
-    update_node(l);
-    update_node(g);
-    update_node(line);
-    //
-    // update_node broadcasts "p" to its terminals' neighbors
-    // then waits for num_neighbors msgs to return
-  
-  }
-  
-  
-  for(int i = 0; i < 10; i++)
-  {
-    printf("%f\n", get_p(l,0,i));
+    // SOLVE black
+    solve_vertex(bus1, 1.0);
+    solve_vertex(bus2, 1.0);
   }
   
   for(int i = 0; i < 10; i++)
-  {
-    printf("%f\n", get_p(g,0,i));
-  }
+    printf("%f\n", get_p(get_edge(l,0),i));
   
-  printf("~~~ %f ~~~\n", evaluate_node(g));
+  for(int i = 0; i < 10; i++)
+    printf("%f\n", get_p(get_edge(g,0),i));
   
-  free_node(g);
-  free_node(l);
+  
+  printf("~~~ %f ~~~\n", evaluate_vertex(g));
+  
+  // free red nodes
+  free_vertex(g);
+  free_vertex(l);
+  free_vertex(line);
+  
+  // don't need to free black nodes
+  //free_vertex(bus1);
+  //free_vertex(bus2);
 
 }
