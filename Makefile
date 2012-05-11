@@ -1,7 +1,7 @@
 # compiler
-CC			  = clang
+CC			= clang
 # archiver
-AR        = ar
+AR			= ar
 
 CINCLUDE	= -I src
 LDFLAGS		= -L lib -lgadmm
@@ -11,21 +11,22 @@ SOURCES		= graph_admm.c
 INCLUDES	= $(SOURCES:.c=.h)
 OBJECTS		= $(SOURCES:.c=.o)
 
-BUILDDIR  = build
-SRCDIR    = src
-LIBDIR    = lib
-EXDIR     = example
-LIBNAME   = libgadmm
+BUILDDIR  	= build
+BINDIR		= bin
+SRCDIR		= src
+LIBDIR		= lib
+EXDIR		= example
+LIBNAME		= libgadmm
 
 all: example gadmm
 
 # ADMM based optimal power flow solver
 
-example: $(BUILDDIR) gadmm main 
+example: $(BUILDDIR) $(BINDIR) gadmm $(BINDIR)/main 
 
 gadmm: $(BUILDDIR) $(LIBDIR) $(LIBDIR)/$(LIBNAME).a
 
-main: $(BUILDDIR)/main.o
+$(BINDIR)/main: $(BUILDDIR)/main.o
 	$(CC) -g $< -o $@ $(LDFLAGS)
 
 $(LIBDIR)/$(LIBNAME).a: $(BUILDDIR)/$(OBJECTS)
@@ -45,9 +46,12 @@ $(BUILDDIR):
 $(LIBDIR):
 	mkdir $(LIBDIR)
 
+$(BINDIR):
+	mkdir $(BINDIR)
+
 # Cleanup tasks
 clean:
-	rm -rf bin lib build main
+	rm -rf $(BINDIR) $(LIBDIR) $(BUILDDIR)
 
 .PHONY: clean
 
