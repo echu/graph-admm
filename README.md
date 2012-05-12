@@ -16,7 +16,7 @@ This is the source directory for gadmm--a shared C library used to perform
 ADMM on graph-based problems. In particular, it is designed to solve problems
 of the form
 
-  minimize f(x) + I_C(y) subject to x = y
+    minimize f(x) + I_C(y) subject to x = y
 
 where I_C(y) is the indicator function over the set C = { y | sum(y) = 0 }. (I
 think. I need to double-check.)
@@ -39,3 +39,44 @@ TODO
 ====
 * Write some unit tests.
 * Make `connect` override-able or at least user-supplied.
+
+Some notes
+==========
+I tried using this code to interface with our OPSP solver. It doesn't quite work. 
+The issue is with the following idea in ADMM (or DR splitting, for that matter)
+
+    x^{k+1} = prox_f(z^k - u^k)
+
+The prox function of f can be specified in a `C` library (assuming we know what f 
+looks like). The problem with creating a graph admm library where the use specifies 
+the prox function for each vertex in the graph is that each vertex could have a 
+different prox function. Each of these functions has to be written *by hand* in order
+to be passed to our vertices.
+
+This would not be a problem in `C` or `C++` if we could create functions programmatically,
+but since we can't (since functions are not first-class objects), the library is pretty
+useless. It is possible to create global objects and global indices inside the functions
+to access the parameters, but that's the kind of programming we've all been taught to avoid.
+
+For fun, it's possible to write a compiler to read a network specification and *emit* the
+`C` code, since we are technically talking about a simulation, but that feels like
+using a sledgehammer where we didn't need it in the first place.
+
+A piece of `C` code like this is useful for sensor nodes and hooking them up, but
+it's not general purpose enough for anybody else to really use in their own programming
+projects. They might as well write their own ADMM code.
+
+The goal was to save others the trouble of writing ADMM code. They would simply provide
+the definitions for
+
+    prox_{f_i}
+    prox_{g_i}
+    
+for all vertices i, specify how these things were connected, and call `admm_solve` or something.
+
+It's not that easy when the f's and g's are similar (say, linear functions) but require parameters.
+
+I can't write a general purpose library for a function that takes any kind of parameters. I need
+users to supply the parameters and then just pass me the resulting function. But `C` can't do this!
+
+Guess I'll pass a `void *`...
