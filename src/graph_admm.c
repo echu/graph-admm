@@ -1,5 +1,8 @@
 #include "graph_admm.h"
 #include <stdlib.h>
+#include <stdio.h>
+
+typedef enum {RED, BLACK} vertex_color;
 
 // an edge in the graph ADMM framework
 struct gadmm_edge {
@@ -11,8 +14,9 @@ struct gadmm_edge {
 // a vertex in the graph ADMM framework
 struct gadmm_vertex
 {
-  int num_edges;                		// number of edges
-  struct gadmm_edge **edges;    		// my exposed edges
+  int num_edges;                // number of edges
+  struct gadmm_edge **edges;    // my exposed edges
+  vertex_color color;           // my vertex color
   
   // objective function pointer
   objective_func objective;
@@ -20,8 +24,8 @@ struct gadmm_vertex
   solver_func solve;
 };
 
-// returns a device with the functions set
-struct gadmm_vertex *create_vertex(int len, int num_edges,
+// returns a vertex with the functions set
+struct gadmm_vertex *create_red_vertex(int len, int num_edges,
   objective_func f, solver_func prox_f)
 {
   struct gadmm_vertex *new_vertex = (struct gadmm_vertex *) malloc(sizeof(struct gadmm_vertex));
@@ -32,6 +36,22 @@ struct gadmm_vertex *create_vertex(int len, int num_edges,
   for(int i = 0; i < num_edges; i++)
     new_vertex->edges[i] = create_edge(len);
   
+  new_vertex->color = RED;
+  new_vertex->objective = f;
+  new_vertex->solve = prox_f;
+  
+  return new_vertex;
+}
+
+struct gadmm_vertex *create_black_vertex(objective_func f, 
+  solver_func prox_f)
+{
+  struct gadmm_vertex *new_vertex = (struct gadmm_vertex *) malloc(sizeof(struct gadmm_vertex));
+  new_vertex->num_edges = 0;
+
+  new_vertex->edges = NULL;
+  
+  new_vertex->color = BLACK;
   new_vertex->objective = f;
   new_vertex->solve = prox_f;
   
@@ -49,9 +69,10 @@ struct gadmm_edge *create_edge(int len)
 }
 
 // frees the memory
-void free_vertex(struct gadmm_vertex *d)
+void free_red_vertex(struct gadmm_vertex *d)
 {
-  if(d) {
+  // check if the vertex is actually red
+  if(d && d->color == RED) {
     if(d->edges) {
       for(int i = 0; i < d->num_edges; i++) 
         free_edge(d->edges[i]);
@@ -59,8 +80,21 @@ void free_vertex(struct gadmm_vertex *d)
     d->edges = NULL;
    
     free(d);
+    d = NULL;
   }
-  d = NULL;
+}
+
+// free black vertices (this implementation is specific!)
+void free_black_vertex(struct gadmm_vertex *d)
+{
+  // check if the vertex is actually black
+  if(d && d->color == BLACK) {
+    if(d->edges) free(d->edges);
+    d->edges = NULL;
+   
+    free(d);
+    d = NULL;
+  }
 }
 
 // frees the memory
@@ -72,13 +106,14 @@ void free_edge(struct gadmm_edge *e)
     if(e->u) free(e->u);
     e->u = NULL;
     free(e);
+    e = NULL;
   }
-  e = NULL;
 }
 
 // solve
 void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho, void *params)
 {
+  // TODO: only do error-checking when debugging
   if(d->solve) d->solve(d, rho, params);
 }
 
@@ -137,10 +172,27 @@ int edge_length(const struct gadmm_edge *e)
   return e->len;
 }
 
+// XXX: implementation specific
+void assign_edge(struct gadmm_vertex *from, const int e1, struct gadmm_vertex *to, const int e2)
+{
+  // allocate memory
+  if(to->num_edges == 0) 
+    to->edges = (struct gadmm_edge **) malloc(sizeof(struct gadmm_edge *));
+  else
+    to->edges = (struct gadmm_edge **) realloc(to->edges, (to->num_edges + 1)*sizeof(struct gadmm_edge *));
+
+  to->edges[e2] = from->edges[e1];
+  to->num_edges++;
+}
+
 // XXX: implementation specific connect
 void connect(struct gadmm_vertex *d1, const int e1, struct gadmm_vertex *d2, const int e2)
 {
-  free_edge(d2->edges[e2]);
-  d2->edges[e2] = d1->edges[e1];
-  d2->num_edges++;
+  // only allow RED to connect to BLACK
+  if(d1->color + d2->color == 1) {
+    if(d1->color == BLACK) assign_edge(d2,e2, d1,e1);
+    if(d2->color == BLACK) assign_edge(d1,e1, d2,e2); 
+  } 
 }
+
+

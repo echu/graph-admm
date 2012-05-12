@@ -11,14 +11,17 @@ typedef void (*solver_func)(struct gadmm_vertex*, const DATA_TYPE, void*);
 
 // creates a new vertex
 // functions take void* to pass parameters
-struct gadmm_vertex *create_vertex(int len, int num_terms,
+struct gadmm_vertex *create_red_vertex(int len, int num_terms,
   objective_func f, solver_func prox_f);
+struct gadmm_vertex *create_black_vertex(objective_func f, 
+  solver_func prox_f);
   
 // creates a new edge (everything initialized to 0)
 struct gadmm_edge *create_edge(int len);
 
 // frees the memory
-void free_vertex(struct gadmm_vertex *d);
+void free_red_vertex(struct gadmm_vertex *d);
+void free_black_vertex(struct gadmm_vertex *d);
 void free_edge(struct gadmm_edge *e);
 
 // solve

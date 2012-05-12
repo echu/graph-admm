@@ -26,7 +26,7 @@ example: $(BUILDDIR) $(BINDIR) gadmm $(BINDIR)/main
 
 gadmm: $(BUILDDIR) $(LIBDIR) $(LIBDIR)/$(LIBNAME).a
 
-$(BINDIR)/main: $(BUILDDIR)/main.o
+$(BINDIR)/main: $(BUILDDIR)/main.o $(LIBDIR)/$(LIBNAME).a
 	$(CC) -g $< -o $@ $(LDFLAGS)
 
 $(LIBDIR)/$(LIBNAME).a: $(BUILDDIR)/$(OBJECTS)

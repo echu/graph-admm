@@ -112,13 +112,13 @@ void physics(struct gadmm_vertex *s, const float rho, void *physicsparam)
 int main(int argc, char **argv)
 {
   // red vertices
-  struct gadmm_vertex *l = create_vertex(10, 1, NULL, &load_solve);
-  struct gadmm_vertex *g = create_vertex(10, 1, &gen_objective, &gen_solve);
-  struct gadmm_vertex *line = create_vertex(10, 2, NULL, &line_solve);
+  struct gadmm_vertex *l = create_red_vertex(10, 1, NULL, &load_solve);
+  struct gadmm_vertex *g = create_red_vertex(10, 1, &gen_objective, &gen_solve);
+  struct gadmm_vertex *line = create_red_vertex(10, 2, NULL, &line_solve);
   
   // black vertices
-  struct gadmm_vertex *bus1 = create_vertex(0,0, NULL, &physics);
-  struct gadmm_vertex *bus2 = create_vertex(0,0, NULL, &physics);
+  struct gadmm_vertex *bus1 = create_black_vertex(NULL, &physics);
+  struct gadmm_vertex *bus2 = create_black_vertex(NULL, &physics);
   
 
   // connect the load and the line to a bus
@@ -151,12 +151,12 @@ int main(int argc, char **argv)
   printf("~~~ %f ~~~\n", evaluate_vertex(g, NULL));
   
   // free red nodes
-  free_vertex(g);
-  free_vertex(l);
-  free_vertex(line);
+  free_red_vertex(g);
+  free_red_vertex(l);
+  free_red_vertex(line);
   
-  // don't need to free black nodes
-  //free_vertex(bus1);
-  //free_vertex(bus2);
+  // free black nodes
+  free_black_vertex(bus1);
+  free_black_vertex(bus2);
 
 }
