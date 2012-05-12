@@ -25,10 +25,10 @@ struct gadmm_vertex *create_vertex(int len, int num_edges,
   DATA_TYPE (*objective_func)(struct gadmm_vertex*),
   void (*solver_func)(struct gadmm_vertex*, const DATA_TYPE))
 {
-  struct gadmm_vertex *new_vertex = malloc(sizeof(struct gadmm_vertex));
+  struct gadmm_vertex *new_vertex = (struct gadmm_vertex *) malloc(sizeof(struct gadmm_vertex));
   new_vertex->num_edges = num_edges;
 
-  new_vertex->edges = malloc(num_edges*sizeof(struct gadmm_edge *));
+  new_vertex->edges = (struct gadmm_edge **) malloc(num_edges*sizeof(struct gadmm_edge *));
   
   for(int i = 0; i < num_edges; i++)
     new_vertex->edges[i] = create_edge(len);
@@ -42,10 +42,10 @@ struct gadmm_vertex *create_vertex(int len, int num_edges,
 // returns a edge of length N with profiles and prices set to 0
 struct gadmm_edge *create_edge(int len)
 {
-  struct gadmm_edge *new_edge = malloc(sizeof(struct gadmm_edge));
+  struct gadmm_edge *new_edge = (struct gadmm_edge *) malloc(sizeof(struct gadmm_edge));
   new_edge->len = len;
-  new_edge->p = calloc(len, sizeof(DATA_TYPE));
-  new_edge->u = calloc(len, sizeof(DATA_TYPE));
+  new_edge->p = (DATA_TYPE *) calloc(len, sizeof(DATA_TYPE));
+  new_edge->u = (DATA_TYPE *) calloc(len, sizeof(DATA_TYPE));
   return new_edge;
 }
 
