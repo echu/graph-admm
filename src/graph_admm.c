@@ -79,13 +79,16 @@ void free_edge(struct gadmm_edge *e)
 // solve
 void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho, void *params)
 {
-  d->solve(d, rho, params);
+  if(d->solve) d->solve(d, rho, params);
 }
 
 // evaluate objective
 inline DATA_TYPE evaluate_vertex(struct gadmm_vertex *d, void *params)
 {
-  return d->objective(d, params);
+  if(d->objective)
+    return d->objective(d, params);
+  else
+    return 0;
 }
 
 // accessors

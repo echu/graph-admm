@@ -112,13 +112,13 @@ void physics(struct gadmm_vertex *s, const float rho, void *physicsparam)
 int main(int argc, char **argv)
 {
   // red vertices
-  struct gadmm_vertex *l = create_vertex(10, 1, &load_objective, &load_solve);
+  struct gadmm_vertex *l = create_vertex(10, 1, NULL, &load_solve);
   struct gadmm_vertex *g = create_vertex(10, 1, &gen_objective, &gen_solve);
-  struct gadmm_vertex *line = create_vertex(10, 2, &load_objective, &line_solve);
+  struct gadmm_vertex *line = create_vertex(10, 2, NULL, &line_solve);
   
   // black vertices
-  struct gadmm_vertex *bus1 = create_vertex(0,0, &load_objective, &physics);
-  struct gadmm_vertex *bus2 = create_vertex(0,0, &load_objective, &physics);
+  struct gadmm_vertex *bus1 = create_vertex(0,0, NULL, &physics);
+  struct gadmm_vertex *bus2 = create_vertex(0,0, NULL, &physics);
   
 
   // connect the load and the line to a bus
