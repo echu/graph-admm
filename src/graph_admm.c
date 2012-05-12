@@ -83,7 +83,7 @@ void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho, void *params)
 }
 
 // evaluate objective
-inline DATA_TYPE evaluate_vertex(struct gadmm_vertex *d, void *params)
+DATA_TYPE evaluate_vertex(struct gadmm_vertex *d, void *params)
 {
   if(d->objective)
     return d->objective(d, params);
@@ -92,47 +92,47 @@ inline DATA_TYPE evaluate_vertex(struct gadmm_vertex *d, void *params)
 }
 
 // accessors
-inline const struct gadmm_edge* get_edge(struct gadmm_vertex *d, const int edge)
+const struct gadmm_edge* get_edge(struct gadmm_vertex *d, const int edge)
 {
   // TODO: error checking
   return d->edges[edge];
 }
 
-inline struct gadmm_edge* get_mutable_edge(struct gadmm_vertex *d, const int edge)
+struct gadmm_edge* get_mutable_edge(struct gadmm_vertex *d, const int edge)
 {
   // TODO: error checking
   return d->edges[edge];
 }
 
-inline DATA_TYPE get_p(const struct gadmm_edge* e, const int i)
+DATA_TYPE get_p(const struct gadmm_edge* e, const int i)
 {
   // TODO: error checking
   return e->p[i];
 }
 
-inline DATA_TYPE get_u(const struct gadmm_edge* e, const int i)
+DATA_TYPE get_u(const struct gadmm_edge* e, const int i)
 {
   return e->u[i];
 }
 
-inline void set_p(struct gadmm_edge* e, const int i, const DATA_TYPE p)
+void set_p(struct gadmm_edge* e, const int i, const DATA_TYPE p)
 {
   e->p[i] = p;
 }
 
-inline void set_u(struct gadmm_edge* e, const int i, const DATA_TYPE u)
+void set_u(struct gadmm_edge* e, const int i, const DATA_TYPE u)
 {
   e->u[i] = u;
 }
 
 // get the number of edges out of vertex
-inline int num_edges(const struct gadmm_vertex* d)
+int num_edges(const struct gadmm_vertex* d)
 {
   return d->num_edges;
 }
 
 // get the length of the variable
-inline int edge_length(const struct gadmm_edge *e)
+int edge_length(const struct gadmm_edge *e)
 {
   return e->len;
 }

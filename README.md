@@ -80,3 +80,8 @@ I can't write a general purpose library for a function that takes any kind of pa
 users to supply the parameters and then just pass me the resulting function. But `C` can't do this!
 
 Guess I'll pass a `void *`...
+
+Inline
+======
+Some of the code segments are very short, but they don't get inlined properly by the compilers.
+Not sure if there's a workaround for this.
