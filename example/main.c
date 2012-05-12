@@ -12,13 +12,13 @@ static float load[] = { 1.1, 1.0, 0.9, 0.8, 1.2, 1.4, 1.5, 1.8, 1.9, 2.0 };
  * ------------------- */
  
 // the objective on a load
-float load_objective(struct gadmm_vertex *d)
+float load_objective(struct gadmm_vertex *d, void *ignore)
 {
   return 0.0;
 }
 
 // the objective for a generator
-float gen_objective(struct gadmm_vertex *d)
+float gen_objective(struct gadmm_vertex *d, void *ignore)
 {
   float obj = 0;
   const struct gadmm_edge *e  = get_edge(d,0);
@@ -36,18 +36,19 @@ float gen_objective(struct gadmm_vertex *d)
  */
 
 // the solver for a load
-void load_solve(struct gadmm_vertex *s, const float rho)
+void load_solve(struct gadmm_vertex *s, const float rho, void *l)
 {
+  float *myload = (float *) l;
   for(int i = 0; i < num_edges(s); i++)
   {
     struct gadmm_edge *e  = get_mutable_edge(s,i);
     for(int j = 0; j < edge_length(e); j++)
-      set_p(e, j, load[j]); // solve for this terminal
+      set_p(e, j, myload[j]); // solve for this terminal
   }
 }
 
 // the solver for a generator
-void gen_solve(struct gadmm_vertex *s, const float rho)
+void gen_solve(struct gadmm_vertex *s, const float rho, void *genparams)
 {
   for(int i = 0; i < num_edges(s); i++)
   {
@@ -63,7 +64,7 @@ void gen_solve(struct gadmm_vertex *s, const float rho)
 }
 
 // the solver for a lossless line
-void line_solve(struct gadmm_vertex *s, const float rho)
+void line_solve(struct gadmm_vertex *s, const float rho, void *lineparams)
 {
   float tmp[10];
   for(int i = 0; i < num_edges(s); i++) {
@@ -84,7 +85,7 @@ void line_solve(struct gadmm_vertex *s, const float rho)
 }
 
 // the solver for a bus
-void physics(struct gadmm_vertex *s, const float rho)
+void physics(struct gadmm_vertex *s, const float rho, void *physicsparam)
 {
   float tmp[10];
   for(int i = 0; i < num_edges(s); i++) {
@@ -116,8 +117,8 @@ int main(int argc, char **argv)
   struct gadmm_vertex *line = create_vertex(10, 2, &load_objective, &line_solve);
   
   // black vertices
-  struct gadmm_vertex *bus1 = create_vertex(0,2, &load_objective, &physics);
-  struct gadmm_vertex *bus2 = create_vertex(0,2, &load_objective, &physics);
+  struct gadmm_vertex *bus1 = create_vertex(0,0, &load_objective, &physics);
+  struct gadmm_vertex *bus2 = create_vertex(0,0, &load_objective, &physics);
   
 
   // connect the load and the line to a bus
@@ -131,13 +132,13 @@ int main(int argc, char **argv)
   // XXX: need some sort of asynchronous mechanism
   for(int iter = 0; iter < 1000; iter++) {
     // SOLVE red
-    solve_vertex(l, 1.0);
-    solve_vertex(g, 1.0);
-    solve_vertex(line, 1.0);
+    solve_vertex(l, 1.0, load);
+    solve_vertex(g, 1.0, NULL);
+    solve_vertex(line, 1.0, NULL);
     
     // SOLVE black
-    solve_vertex(bus1, 1.0);
-    solve_vertex(bus2, 1.0);
+    solve_vertex(bus1, 1.0, NULL);
+    solve_vertex(bus2, 1.0, NULL);
   }
   
   for(int i = 0; i < 10; i++)
@@ -147,7 +148,7 @@ int main(int argc, char **argv)
     printf("%f\n", get_p(get_edge(g,0),i));
   
   
-  printf("~~~ %f ~~~\n", evaluate_vertex(g));
+  printf("~~~ %f ~~~\n", evaluate_vertex(g, NULL));
   
   // free red nodes
   free_vertex(g);

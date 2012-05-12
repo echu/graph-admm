@@ -6,10 +6,13 @@
 struct gadmm_vertex;
 struct gadmm_edge;
 
+typedef DATA_TYPE (*objective_func)(struct gadmm_vertex*, void*);
+typedef void (*solver_func)(struct gadmm_vertex*, const DATA_TYPE, void*);
+
 // creates a new vertex
+// functions take void* to pass parameters
 struct gadmm_vertex *create_vertex(int len, int num_terms,
-  DATA_TYPE (*objective_func)(struct gadmm_vertex*),
-  void (*solver_func)(struct gadmm_vertex*, const DATA_TYPE));
+  objective_func f, solver_func prox_f);
   
 // creates a new edge (everything initialized to 0)
 struct gadmm_edge *create_edge(int len);
@@ -20,10 +23,10 @@ void free_edge(struct gadmm_edge *e);
 
 // solve
 // XXX: maybe push rho on to terminal level
-void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho);
+void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho, void *params);
 
 // evaluate the objective on the vertex
-DATA_TYPE evaluate_vertex(struct gadmm_vertex *d);
+DATA_TYPE evaluate_vertex(struct gadmm_vertex *d, void *params);
 
 // these are immmutable
 const struct gadmm_edge *get_edge(struct gadmm_vertex *d, const int edge);

@@ -15,15 +15,14 @@ struct gadmm_vertex
   struct gadmm_edge **edges;    		// my exposed edges
   
   // objective function pointer
-  DATA_TYPE (*objective)(struct gadmm_vertex*);
+  objective_func objective;
   // solver function pointer
-  void (*solve)(struct gadmm_vertex*, const DATA_TYPE);
+  solver_func solve;
 };
 
 // returns a device with the functions set
 struct gadmm_vertex *create_vertex(int len, int num_edges,
-  DATA_TYPE (*objective_func)(struct gadmm_vertex*),
-  void (*solver_func)(struct gadmm_vertex*, const DATA_TYPE))
+  objective_func f, solver_func prox_f)
 {
   struct gadmm_vertex *new_vertex = (struct gadmm_vertex *) malloc(sizeof(struct gadmm_vertex));
   new_vertex->num_edges = num_edges;
@@ -33,8 +32,8 @@ struct gadmm_vertex *create_vertex(int len, int num_edges,
   for(int i = 0; i < num_edges; i++)
     new_vertex->edges[i] = create_edge(len);
   
-  new_vertex->objective = objective_func;
-  new_vertex->solve = solver_func;
+  new_vertex->objective = f;
+  new_vertex->solve = prox_f;
   
   return new_vertex;
 }
@@ -78,15 +77,15 @@ void free_edge(struct gadmm_edge *e)
 }
 
 // solve
-void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho)
+void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho, void *params)
 {
-  d->solve(d, rho);
+  d->solve(d, rho, params);
 }
 
 // evaluate objective
-inline DATA_TYPE evaluate_vertex(struct gadmm_vertex *d)
+inline DATA_TYPE evaluate_vertex(struct gadmm_vertex *d, void *params)
 {
-  return d->objective(d);
+  return d->objective(d, params);
 }
 
 // accessors
@@ -140,4 +139,5 @@ void connect(struct gadmm_vertex *d1, const int e1, struct gadmm_vertex *d2, con
 {
   free_edge(d2->edges[e2]);
   d2->edges[e2] = d1->edges[e1];
+  d2->num_edges++;
 }
