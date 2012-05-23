@@ -113,6 +113,11 @@ void free_edge(struct gadmm_edge *e)
 // solve
 void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho, void *params)
 {
+  // TODO: should not pass the vertex
+  // TODO: should pass in the argument to the prox operator
+  // TODO: should use the result to update
+  // this will hide the ADMM implementation from the user
+  // TODO: if black, do the dual update?
   // TODO: only do error-checking when debugging
   if(d->solve) d->solve(d, rho, params);
 }

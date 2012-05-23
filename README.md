@@ -85,3 +85,9 @@ Inline
 ======
 Some of the code segments are very short, but they don't get inlined properly by the compilers.
 Not sure if there's a workaround for this.
+
+Notes about library
+===================
+We should be responsible for passing a vector `v` to the prox function and responsible for 
+updating the primal and dual variables through the updated / modified `v`. You'll get a
+`float *` along with an `int` to describe the length.
