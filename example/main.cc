@@ -51,7 +51,11 @@ class Vector : public AbelianGroupInterface
 
 class Generator : public Vertex {
   public:
-    Generator(const char *s) : Vertex(s) { }
+    Generator(const char *s) : Vertex(s) { 
+      std::vector<const char *> names(1);
+      names[0] = "out";
+      this->InitRedVertex<Vector>(names);
+    }
 
     void Prox() 
     { 
@@ -61,7 +65,11 @@ class Generator : public Vertex {
 
 class Load : public Vertex {
   public:
-    Load(const char *s) : Vertex(s) { }
+    Load(const char *s) : Vertex(s) { 
+      std::vector<const char *> names(2);
+      names[0] = "out"; names[1] = "in";
+      this->InitRedVertex<Vector>(names);
+    }
     
     void Prox()
     {
@@ -75,11 +83,7 @@ int main(int argc, char **argv)
   Generator v1("palo alto");
   Generator v2("justice");
   Load l1("stanford");
-  
-  std::vector<const char *> names(2);
-  names[0] = "v1.in"; names[1] = "v2.in";
-  v1.InitRedVertex<Vector>(names);
-  
+
   vertices.push_back(&v1);
   vertices.push_back(&v2);
   vertices.push_back(&l1);

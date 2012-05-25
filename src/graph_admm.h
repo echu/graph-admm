@@ -89,15 +89,15 @@ class Vertex {
     
     // get name
     const char *name() const { return name_; }
+      
+    void Reset();
     
-    
+  protected:
     // initializers
     template<typename T>
       void InitRedVertex(const std::vector<const char *> &term_names);
     template<typename T>
       void InitBlackVertex(const std::vector<const char *> &term_names);
-      
-    void Reset();
     
   private:
     DISALLOW_COPY_AND_ASSIGN(Vertex);
