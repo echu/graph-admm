@@ -1,44 +1,34 @@
 # compiler
-CC			= clang
-# archiver
-AR			= ar
+CC			= clang++
 
 CINCLUDE	= -I src
-LDFLAGS		= -L lib -lgadmm
-CFLAGS  	= -Wall -msse3 -ffast-math -O3 -std=c99
+LDFLAGS		= 
+CFLAGS  	= -Wall -msse3 -ffast-math -O2
 
-SOURCES		= graph_admm.c
+SOURCES		= 
 INCLUDES	= $(SOURCES:.c=.h)
 OBJECTS		= $(SOURCES:.c=.o)
 
 BUILDDIR  	= build
 BINDIR		= bin
 SRCDIR		= src
-LIBDIR		= lib
 EXDIR		= example
-LIBNAME		= libgadmm
 
-all: example gadmm
+all: example
 
 # ADMM based optimal power flow solver
 
-example: $(BUILDDIR) $(BINDIR) gadmm $(BINDIR)/main 
+example: $(BUILDDIR) $(BINDIR) $(BINDIR)/main 
 
-gadmm: $(BUILDDIR) $(LIBDIR) $(LIBDIR)/$(LIBNAME).a
-
-$(BINDIR)/main: $(BUILDDIR)/main.o $(LIBDIR)/$(LIBNAME).a
+$(BINDIR)/main: $(BUILDDIR)/main.o #$(LIBDIR)/$(LIBNAME).a
 	$(CC) -g $< -o $@ $(LDFLAGS)
 
 $(LIBDIR)/$(LIBNAME).a: $(BUILDDIR)/$(OBJECTS)
 	$(AR) rsv $@ $<
   
-# compile .c files in to .o files
-$(BUILDDIR)/%.o : $(EXDIR)/%.c
+# compile .cc files in to .o files
+$(BUILDDIR)/%.o : $(EXDIR)/%.cc $(SRCDIR)/graph_admm.h
 	$(CC) -c -o $@ $(CFLAGS) $(CINCLUDE) $<
-
-# compile .cpp, .c, and .cc files in to .o files
-$(BUILDDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/$(INCLUDES)
-	$(CC) -c -o $@ $(CFLAGS) $<
 
 $(BUILDDIR):
 	mkdir $(BUILDDIR)

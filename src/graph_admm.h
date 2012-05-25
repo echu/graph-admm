@@ -1,54 +1,219 @@
-#ifndef GADMM_H
-#define GADMM_H
+#ifndef GRAPH_ADMM_GRAPH_ADMM_H_
+#define GRAPH_ADMM_GRAPH_ADMM_H_
 
-#define DATA_TYPE float
+#include <sparsehash/dense_hash_map>
+#include <vector>
 
-struct gadmm_vertex;
-struct gadmm_edge;
+// A macro to disallow the copy constructor and operator= functions
+// This should be used in the private: declarations for a class
+// (ECHU): From Google's C++ styleguide
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&);               \
+  void operator=(const TypeName&)
 
-typedef DATA_TYPE (*objective_func)(struct gadmm_vertex*, void*);
-typedef void (*solver_func)(struct gadmm_vertex*, const DATA_TYPE, void*);
+namespace graph_admm {
 
-// creates a new vertex
-// functions take void* to pass parameters
-struct gadmm_vertex *create_red_vertex(int len, int num_terms,
-  objective_func f, solver_func prox_f);
-struct gadmm_vertex *create_black_vertex(objective_func f, 
-  solver_func prox_f);
+// An Abelian group interface (AbelianGroupInterface)
+// ==================================================
+// This interface simply requires that "terminal" data structures be an
+// Abelian (commutative) group. This means that objects which inherit 
+// the "AbelianGroupInterface" have the "+" operation defined and an 
+// inverse element (or, similarly, the "-" operation defined). 
+// Furthermore, these elements are in the group (i.e., also objects of 
+// type AbelianGroupInterface).
+//
+// The user must also specify the identity element.
+//
+// For a concrete implementation of this interface, the "+" and "-" 
+// operations are specified in-place.
+//
+// Instead of operator overloading, we force the user to implement the 
+// functions so that they are conscious of the design choices. This is 
+// also in accordance with the Google styleguide.
+//
+class AbelianGroupInterface {
+  public:
+    virtual ~AbelianGroupInterface() { };
+    // Virtual method for adding in place
+    // ==================================
+    // The mathematical semantics of this funcion call is
+    //
+    //    x += y
+    //
+    // Since C++ doesn't support covariant arguments, we guarantee that
+    // the argument to AddInPlace will be of the derived class for this
+    // interface.
+    virtual void AddInPlace(const AbelianGroupInterface& rhs) = 0;
+    
+    // Virtual method for subtracting in place
+    // ========================================
+    // The mathematical semantics of this funcion call is
+    //
+    //    x += (-y)
+    //
+    // Since C++ doesn't support covariant arguments, we guarantee that
+    // the argument to SubInPlace will be of the derived class for this
+    // interface.
+    virtual void SubInPlace(const AbelianGroupInterface& rhs) = 0;
+    
+    // Virtual method for deleting element
+    // ===================================
+    virtual void Reset() = 0;
+    
+    // Factory method for generating identity element
+    // ==============================================
+    // This is a static member function to create the identity element.
+    static AbelianGroupInterface* Zero();
+};
+
+
+// An ADMM vertex class (Vertex)
+// =============================
+// This base class implements behavior for any ADMM vertex. It requires 
+// subclasses to implement the prox operator and, optionally, the 
+// objective function.
+//
+// blah blah blah
+class Vertex {
+  public:
+    explicit Vertex(const char *s) : name_(s), color(kNone) 
+    { 
+      terminals.set_empty_key(NULL);
+    }
+    
+    virtual const double EvaluateObjective() const { return 0.0; }
+    virtual void Prox() = 0;
+    
+    virtual ~Vertex() { Reset(); } 
+    // other things to implement later...
+    
+    // get name
+    const char *name() const { return name_; }
+    
+    
+    // initializers
+    template<typename T>
+      void InitRedVertex(const std::vector<const char *> &term_names);
+    template<typename T>
+      void InitBlackVertex(const std::vector<const char *> &term_names);
+      
+    void Reset();
+    
+  private:
+    DISALLOW_COPY_AND_ASSIGN(Vertex);
+    
+    // enum for VertexColors
+    enum VertexColors {
+      kNone = 0,
+      kRed,
+      kBlack
+    };
+    
+    // An ADMM terminal struct (Terminal)
+    // =================================
+    // This struct is a container for any ADMM terminal. It requires the 
+    // data types to be subclasses of an Abelian group.
+    //
+    // We use scoped_ptr's instead of a regular pointer to ensure that
+    // the memory is properly managed.
+    struct Terminal {
+      AbelianGroupInterface *x;
+      AbelianGroupInterface *z;
+      AbelianGroupInterface *u;
+      double rho;
+    };
+    
+    // functor for Dan Bernstein hash function
+    struct djb2 {
+      size_t operator()(const char *str) const;
+    };
+    
+    // functor for string comparison
+    struct eqstr {
+      bool operator()(const char *s1, const char* s2) const
+      {
+        return (s1 == s2) || (s1 && s2 && strcmp(s1,s2) == 0);
+      }
+    };
+    
+    const char *name_;
+    google::dense_hash_map<const char *, Terminal, djb2, eqstr> terminals;
+    VertexColors color;
+};
+
+
+
+// red vertex, black vertex inherit from vertex
+// vertex has a private class which is a terminal
+
+// specify terminal names and (number of terminals) on init
+// init_as_red, init_as_black
+
+// contains stringval hash for terminals
+// name, color, solve, obj
+// TYPE for x,z,u
+
+size_t Vertex::djb2::operator()(const char *str) const
+{
+  size_t hash = 5381;
+  size_t c;
+
+  while ((c = *str++) != '\0')
+      hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+  return hash;
+}
+
+template <typename T>
+void Vertex::InitRedVertex(const std::vector<const char *> &term_names) 
+{
+  color = kRed;
+  for ( 
+    std::vector<const char *>::const_iterator it = term_names.begin(); 
+    it != term_names.end();
+    ++it ) {
+      Terminal term;
+     
+      term.x = T::Zero();
+      term.z = T::Zero();
+      term.u = T::Zero();
+      term.rho = 1.0;
+      
+      this->terminals[*it] = term;
+  }
+}
+
+template <typename T>
+void Vertex::InitBlackVertex(const std::vector<const char *> &term_names) 
+{
+  color = kBlack;
+  for ( 
+    std::vector<const char *>::const_iterator it = term_names.begin(); 
+    it != term_names.end();
+    ++it ) {
+      Terminal term;
+      
+      term.x = T::Zero();
+      term.z = T::Zero();
+      term.u = T::Zero();
+      term.rho = 1.0;
+      
+      this->terminals[*it] = term;
+  }
+}
+
+void Vertex::Reset() 
+{
+  google::dense_hash_map<const char *, Terminal, djb2, eqstr>
+    ::const_iterator it;
   
-// creates a new edge (everything initialized to 0)
-struct gadmm_edge *create_edge(int len);
+  for(it = terminals.begin(); it != terminals.end(); ++it) {
+    it->second.x->Reset();
+    it->second.z->Reset();
+    it->second.u->Reset();
+  }
+}
 
-// frees the memory
-void free_red_vertex(struct gadmm_vertex *d);
-void free_black_vertex(struct gadmm_vertex *d);
-void free_edge(struct gadmm_edge *e);
+} // namespace graph_admm
 
-// solve
-// XXX: maybe push rho on to terminal level
-void solve_vertex(struct gadmm_vertex *d, const DATA_TYPE rho, void *params);
-
-// evaluate the objective on the vertex
-DATA_TYPE evaluate_vertex(struct gadmm_vertex *d, void *params);
-
-// these are immmutable
-const struct gadmm_edge *get_edge(struct gadmm_vertex *d, const int edge);
-// these are mutable
-struct gadmm_edge *get_mutable_edge(struct gadmm_vertex *d, const int edge);
-
-DATA_TYPE get_p(const struct gadmm_edge* e, const int i);
-DATA_TYPE get_u(const struct gadmm_edge* e, const int i);
-
-void set_p(struct gadmm_edge* e, const int i, const DATA_TYPE p);
-void set_u(struct gadmm_edge* e, const int i, const DATA_TYPE u);
-
-// get the number of edges out of vertex
-int num_edges(const struct gadmm_vertex *d);
-// get the length of the edge
-int edge_length(const struct gadmm_edge *e);
-
-// connects two vertices through their given edge
-// this function should be "override-able" or something
-void connect(struct gadmm_vertex *d1, const int e1, struct gadmm_vertex *d2, const int e2);
-
-#endif // GADMM_H
+#endif // GRAPH_ADMM_GRAPH_ADMM_H_
