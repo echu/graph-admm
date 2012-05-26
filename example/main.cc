@@ -3,7 +3,7 @@
 
 using namespace graph_admm;
 
-class Vector : public AbelianGroupInterface
+class Vector : public RingInterface
 {
   public:
     Vector() : data(NULL) { };
@@ -15,23 +15,36 @@ class Vector : public AbelianGroupInterface
       if(!data) data = new double[n];
     }
   
-    void AddInPlace(const AbelianGroupInterface& rhs)
+    virtual void AddInPlace(const RingInterface& y)
     {
-      const Vector &vec_rhs = static_cast<const Vector&>(rhs);
-      for(int i = 0; i < n; i++) {
-        this->data[i] += vec_rhs.data[i];
+      if(data) {
+        const Vector &rhs = static_cast<const Vector&>(y);
+        for(int i = 0; i < n; i++) {
+          this->data[i] += rhs.data[i];
+        }
       }
     }
 
-    void SubInPlace(const AbelianGroupInterface& rhs) 
+    virtual void SubInPlace(const RingInterface& y) 
     {
-      const Vector &vec_rhs = static_cast<const Vector&>(rhs);
-      for(int i = 0; i < n; i++) {
-        this->data[i] -= vec_rhs.data[i];
+      if(data) {
+        const Vector &rhs = static_cast<const Vector&>(y);
+        for(int i = 0; i < n; i++) {
+          this->data[i] -= rhs.data[i];
+        }
       }
     }
     
-    void Reset()
+    virtual void ScaleInPlace(const double &a)
+    {
+      if(data) {
+        for(int i = 0; i < n; i++) {
+          this->data[i] *= a;
+        }
+      }
+    }
+    
+    virtual void Reset()
     {
       if(data) delete[] data;
       data = NULL;
@@ -42,6 +55,16 @@ class Vector : public AbelianGroupInterface
       Vector *vec = new Vector;
       vec->Initialize();
       return vec;
+    }
+    
+    double& operator[](const int& k)
+    {
+      return data[k];
+    }
+    
+    const int length() const
+    {
+      return n;
     }
   
   private:
@@ -56,8 +79,8 @@ class Generator : public Vertex {
       names[0] = "out";
       this->InitRedVertex<Vector>(names);
     }
-
-    void Prox() 
+  
+    virtual void Prox(Const_ProxArg& in, ProxArg& out) 
     { 
     
     }
@@ -67,13 +90,16 @@ class Load : public Vertex {
   public:
     Load(const char *s) : Vertex(s) { 
       std::vector<const char *> names(2);
-      names[0] = "out"; names[1] = "in";
+      names[0] = "out";
       this->InitRedVertex<Vector>(names);
     }
-    
-    void Prox()
+
+    virtual void Prox(Const_ProxArg& in, ProxArg& out) 
     {
-      
+      for(int i = 0; i < 10; i++)
+      {
+        out["out"][i] = in["out"][i];
+      }
     }
 };
 
