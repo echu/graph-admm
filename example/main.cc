@@ -114,6 +114,8 @@ int main(int argc, char **argv)
   vertices.push_back(&v2);
   vertices.push_back(&l1);
   
+  // bus takes a list of names...
+  
   std::vector<Vertex*>::const_iterator it;
   for ( it = vertices.begin();  it != vertices.end(); ++it )
     printf("%s\n", (*it)->name());

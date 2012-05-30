@@ -80,20 +80,21 @@ class RingInterface {
 
 // A connection interface (ConnectionInterface)
 // ============================================
-// Objects which implement this interface are able to exchange messages with
-// other objects implementing this interface. This sits on the application
-// layer in the network stack and wraps the lower-level transport layers. For
-// instance, this interface could be implemented via sockets or ZeroMQ or a
-// Redis database.
+// Objects which implement this interface are able to exchange messages
+// with other objects implementing this interface. This sits on the
+// application layer in the network stack and wraps the lower-level
+// transport layers. For instance, this interface could be implemented
+// via sockets or ZeroMQ or a Redis database. 
 //
-// The interface specifies how the connection is initialized (is it a server?
-// or a client?), and what happens when a RingInterface object is sent and 
-// received. As argument, the Init function receives a string specifying the
-// (global) name of the terminal.
-//
+// The interface specifies how the connection is initialized (is it a 
+// server? or a client?), and what happens when a RingInterface object 
+// is sent and received. As argument, the Init function receives a 
+// string specifying the (global) name of the terminal. 
+// 
 // The interface does not specify how two objects connect (this is done 
-// through specifying the Init function), but rather that they are able to 
-// send messages of type RingInterface and also decode messages of that type.
+// through specifying the Init function), but rather that they are able 
+// to send messages of type RingInterface and also decode messages of 
+// that type.
 class ConnectionInterface {
   public:
     virtual ~ConnectionInterface() { };
