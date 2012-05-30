@@ -72,14 +72,35 @@ class RingInterface {
     // where "a" is a scalar (a real number).
     virtual void ScaleInPlace(const double& a) = 0;
     
-    // Virtual method for deleting element
-    // ===================================
-    virtual void Reset() = 0;
-    
     // Factory method for generating identity element
     // ==============================================
     // This is a static member function to create the identity element.
     static RingInterface* Zero();
+};
+
+// A connection interface (ConnectionInterface)
+// ============================================
+// Objects which implement this interface are able to exchange messages with
+// other objects implementing this interface. This sits on the application
+// layer in the network stack and wraps the lower-level transport layers. For
+// instance, this interface could be implemented via sockets or ZeroMQ or a
+// Redis database.
+//
+// The interface specifies how the connection is initialized (is it a server?
+// or a client?), and what happens when a RingInterface object is sent and 
+// received. As argument, the Init function receives a string specifying the
+// (global) name of the terminal.
+//
+// The interface does not specify how two objects connect (this is done 
+// through specifying the Init function), but rather that they are able to 
+// send messages of type RingInterface and also decode messages of that type.
+class ConnectionInterface {
+  public:
+    virtual ~ConnectionInterface() { };
+  
+    virtual void Init(const char *arg) = 0;
+    virtual void Send(const RingInterface *msg) = 0;
+    virtual RingInterface *Recv() = 0;
 };
 
 
@@ -107,6 +128,8 @@ class RingInterface {
 // inside a Terminal. This way, modifications to Terminal propagate
 // to the prox inputs and modifications to the prox outputs propagate
 // to the Terminals.
+//
+// Blacks act as servers...
 class Vertex {
   public:
     // functor for Dan Bernstein hash function
@@ -126,21 +149,38 @@ class Vertex {
     typedef google::dense_hash_map<const char *, const RingInterface *, djb2, eqstr> Const_ProxArg;
     typedef google::dense_hash_map<const char *, RingInterface *, djb2, eqstr> ProxArg;
 
-    explicit Vertex(const char *s) : name_(s), color(kNone) 
+    // constructor
+    explicit Vertex(const char *s) : name_(s), color_(kNone) 
     { 
-      terminals.set_empty_key(NULL);
+      terminals_.set_empty_key(NULL);
       inputs.set_empty_key(NULL);
       outputs.set_empty_key(NULL);
     }
     
-    virtual const double EvaluateObjective() const { return 0.0; }
+    // functions for Derived classes to implement
+    virtual inline const double EvaluateObjective() const { return 0.0; }
     virtual void Prox(Const_ProxArg &in, ProxArg &out) = 0;
     
     virtual ~Vertex() { Reset(); } 
     
     // get name
-    const char *name() const { return name_; }
+    inline const char *name() const { return name_; }
+    // get terminal values
+    inline const RingInterface *terminal_x(const char *str) 
+      { return terminals_[str].x; }
+    inline const RingInterface *terminal_z(const char *str) 
+      { return terminals_[str].z; }
+    inline const RingInterface *terminal_u(const char *str) 
+      { return terminals_[str].u; }
     
+    // not a deep copy
+    void set_terminal_x(const char *str, RingInterface *r)
+      { terminals_[str].x = r; }
+    void set_terminal_z(const char *str, RingInterface *r)
+      { terminals_[str].z = r; }
+    void set_terminal_u(const char *str, RingInterface *r)
+      { terminals_[str].u = r; }
+      
     // to clear memory
     void Reset();
     
@@ -149,9 +189,9 @@ class Vertex {
     
   protected:
     // initializers
-    template<typename T>
+    template<typename T, typename U>
       void InitRedVertex(const std::vector<const char *> &term_names);
-    template<typename T>
+    template<typename T, typename U>
       void InitBlackVertex(const std::vector<const char *> &term_names);
     
   private:    
@@ -170,6 +210,7 @@ class Vertex {
     // We (the graph_admm header library) are responsible for freeing
     // the concrete ring objects for x, z, and u.
     struct Terminal {
+      ConnectionInterface *connection;
       RingInterface *x;
       RingInterface *z;
       RingInterface *u;
@@ -182,14 +223,14 @@ class Vertex {
     const char *name_;
     // hash map for terminals
     typedef google::dense_hash_map<const char *, Terminal, djb2, eqstr> TerminalDict;
-    TerminalDict terminals;
+    TerminalDict terminals_;
     
     // hash map for arguments of prox function
     Const_ProxArg inputs;
     ProxArg outputs;
     
     // color of vertex
-    VertexColors color;
+    VertexColors color_;
 };
 
 size_t Vertex::djb2::operator()(const char *str) const
@@ -203,10 +244,10 @@ size_t Vertex::djb2::operator()(const char *str) const
   return hash;
 }
 
-template <typename T>
+template <typename T, typename U>
 void Vertex::InitRedVertex(const std::vector<const char *> &term_names) 
 {
-  color = kRed;
+  color_ = kRed;
   for ( 
     std::vector<const char *>::const_iterator it = term_names.begin(); 
     it != term_names.end();
@@ -217,17 +258,19 @@ void Vertex::InitRedVertex(const std::vector<const char *> &term_names)
       term.z = T::Zero();
       term.u = T::Zero();
       term.rho = 1.0;
+      term.connection = new U;
+      term.connection->Init(*it);
       
-      this->terminals[*it] = term;
+      this->terminals_[*it] = term;
       this->inputs[*it] = term.z;   // term.z is container of prox input
       this->outputs[*it] = term.x;  // term.x is prox output
   }
 }
 
-template <typename T>
+template <typename T, typename U>
 void Vertex::InitBlackVertex(const std::vector<const char *> &term_names) 
 {
-  color = kBlack;
+  color_ = kBlack;
   for ( 
     std::vector<const char *>::const_iterator it = term_names.begin(); 
     it != term_names.end();
@@ -238,8 +281,10 @@ void Vertex::InitBlackVertex(const std::vector<const char *> &term_names)
       term.z = T::Zero();
       term.u = T::Zero();
       term.rho = 1.0;
+      term.connection = new U;
+      term.connection->Init(*it);
       
-      this->terminals[*it] = term;
+      this->terminals_[*it] = term;
       this->inputs[*it] = term.x;   // term.x is container of prox input
       this->outputs[*it] = term.z;  // term.z is prox output
   }
@@ -247,12 +292,17 @@ void Vertex::InitBlackVertex(const std::vector<const char *> &term_names)
 
 void Vertex::Reset() 
 {
-  TerminalDict::const_iterator it;
+  TerminalDict::iterator it;
   
-  for(it = terminals.begin(); it != terminals.end(); ++it) {
-    it->second.x->Reset();
-    it->second.z->Reset();
-    it->second.u->Reset();
+  for(it = terminals_.begin(); it != terminals_.end(); ++it) {
+    delete it->second.x;
+    delete it->second.z;
+    delete it->second.u;
+    delete it->second.connection;
+    it->second.x = NULL;
+    it->second.z = NULL;
+    it->second.u = NULL;
+    it->second.connection = NULL;
   }
 }
 
@@ -260,9 +310,11 @@ void Vertex::Update()
 {
   // Update() is a thread critical block!
   TerminalDict::iterator it;
-  if (color == kRed) {
-    for(it = terminals.begin(); it != terminals.end(); ++it) {
+  if (color_ == kRed) {
+    for(it = terminals_.begin(); it != terminals_.end(); ++it) {
       Terminal term = it->second;
+      // receive z
+      term.z = term.connection->Recv();
       // dual variable update (assumes z's been updated)
       term.x->SubInPlace(*term.z);
       term.u->AddInPlace(*term.x);
@@ -273,21 +325,30 @@ void Vertex::Update()
     
     // inputs and outputs point to the proper terminal args
     Prox(inputs, outputs);
-    // send term.x
     
-  } else if (color == kBlack) {
-    // pass in x + u, (assumes x's been updated)
-    for(it = terminals.begin(); it != terminals.end(); ++it) {
+    // send term.x 
+    for(it = terminals_.begin(); it != terminals_.end(); ++it) {
       Terminal term = it->second;
+      term.connection->Send(term.x);
+    }
+    
+  } else if (color_ == kBlack) {
+    // pass in x + u, (assumes x's been updated)
+    for(it = terminals_.begin(); it != terminals_.end(); ++it) {
+      Terminal term = it->second;
+      // receive x
+      term.x = term.connection->Recv();
       term.x->AddInPlace(*term.u);
     }
     
     Prox(inputs, outputs);// term.z = Prox(term.x);
     
     // dual variable update
-    for(it = terminals.begin(); it != terminals.end(); ++it) {
+    for(it = terminals_.begin(); it != terminals_.end(); ++it) {
       Terminal term = it->second;
       term.u->SubInPlace(*term.z);
+      // send z
+      term.connection->Send(term.z);
     }
     // send term.z
   }

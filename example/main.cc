@@ -44,7 +44,7 @@ class Vector : public RingInterface
       }
     }
     
-    virtual void Reset()
+    void Reset()
     {
       if(data) delete[] data;
       data = NULL;
